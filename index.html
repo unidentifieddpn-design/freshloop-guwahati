@@ -65,4 +65,37 @@ loads.unshift(rec);localStorage.setItem('freshloop_loads_v1',JSON.stringify(load
 function renderLedger(){let body=$('ledger');if(!loads.length){body.innerHTML='<tr><td colspan="7" class="empty">No loads recorded yet. Save a collection load to start the ledger.</td></tr>';}else body.innerHTML=loads.map(x=>`<tr><td>${esc(x.date)}<br><b>${esc(x.ticket)}</b></td><td>${esc(x.location)}</td><td>Ward ${String(x.ward).padStart(2,'0')}</td><td>${esc(x.stream)}<br>${esc(x.material)}</td><td>${fmt(x.tonnes,3)} t</td><td>${esc(x.destination)}</td><td>${x.transportCO2e==null?'—':fmt(x.transportCO2e,3)+' kg'}</td></tr>`).join('');$('mLoads').textContent=loads.length;$('mTonnes').textContent=fmt(loads.reduce((a,x)=>a+x.tonnes,0))+' t';let cs=loads.filter(x=>x.transportCO2e!=null);$('mCarbon').textContent=cs.length?fmt(cs.reduce((a,x)=>a+x.transportCO2e,0),2)+' kg':'—';}
 function resetForm(all=true){if(all){$('date').value=new Date().toISOString().slice(0,10);$('ticket').value='';$('location').value='';$('pin').value='';$('lat').value='';$('lon').value='';$('ward').value='';$('qty').value='';$('vehicle').value='';$('notes').value='';$('segregation').selectedIndex=0;selectedPoint=null;if(selectedMarker)map.removeLayer(selectedMarker);$('coordReadout').textContent='No collection point selected yet.';}updateFlow();}function clearLedger(){if(!confirm('Clear all saved demo loads in this browser?'))return;loads=[];localStorage.removeItem('freshloop_loads_v1');renderLedger();toast('Demo ledger cleared');}function exportCSV(){let heads=['date','ticket','location','pincode','latitude','longitude','ward','stream','material','tonnes','segregation','vehicle','destination','road_km','transport_co2e_kg','notes'];let rows=loads.map(x=>heads.map(k=>JSON.stringify(x[k]??'')).join(','));let blob=new Blob([heads.join(',')+'\n'+rows.join('\n')],{type:'text/csv'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='freshloop_collection_ledger.csv';a.click();URL.revokeObjectURL(a.href);}function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}function toast(s){let t=$('toast');t.textContent=s;t.style.display='block';clearTimeout(window._toastTimer);window._toastTimer=setTimeout(()=>t.style.display='none',3200);}
 initWardControls();resetForm();renderLedger();updateFlow();initDatabase();
+
+/* Navigation fallback: ensure visible navigation items respond to clicks. */
+(function(){
+  const navTargets=[
+    {match:/^overview$/i,target:null},
+    {match:/map\s*&\s*routes/i,target:'mapPanel'},
+    {match:/log\s*collection/i,target:'entryPanel'},
+    {match:/waste\s*ledger/i,target:'ledgerPanel'},
+    {match:/ward\s*scope/i,target:'settingsPanel'}
+  ];
+  function activateNav(el){
+    if(!el)return;
+    const text=(el.textContent||'').replace(/^[^A-Za-z0-9]+/,'').trim();
+    const item=navTargets.find(x=>x.match.test(text));
+    if(!item)return;
+    document.querySelectorAll('.mobile-nav .nav, aside .nav').forEach(n=>n.classList.remove('active'));
+    document.querySelectorAll('.mobile-nav .nav, aside .nav').forEach(n=>{
+      const t=(n.textContent||'').replace(/^[^A-Za-z0-9]+/,'').trim();
+      if(item.match.test(t))n.classList.add('active');
+    });
+    if(item.target){
+      const node=document.getElementById(item.target);
+      if(node){const y=node.getBoundingClientRect().top+window.pageYOffset-96;window.scrollTo({top:Math.max(0,y),behavior:'smooth'});}
+    }else window.scrollTo({top:0,behavior:'smooth'});
+  }
+  document.addEventListener('click',function(e){
+    const el=e.target&&e.target.closest?e.target.closest('.mobile-nav .nav, aside .nav'):null;
+    if(el)activateNav(el);
+  },true);
+  document.addEventListener('keydown',function(e){
+    if((e.key==='Enter'||e.key===' ')&&e.target&&e.target.matches&&e.target.matches('.mobile-nav .nav, aside .nav')){e.preventDefault();activateNav(e.target);}
+  });
+})();
 </script></body></html>
